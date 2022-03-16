@@ -64,7 +64,10 @@ rect_inter = np.zeros([rectE.shape[0], dim[1], dim[0]], dtype=np.float32)
 for i in range(rectE.shape[0]):
     rect_inter[i,:,:,] = cv2.resize(rectE[i,:,:],dim,interpolation = cv2.INTER_AREA)
     
-# align all the band images from rectE to amide I band image
+# align all the band images from rectE to amide I band image from high_resolution image
+# Although it is time consuming to align all bands from rect image to amide I band, keeping 
+#same shape as high resolution image ensures same masks as high-resolution data for classification
+
 warp_affine = []
 
 for i in range(rectE.shape[0]):
