@@ -16,10 +16,12 @@ def align_Images(im2, imref):
     #$blur_im = cv2.blur(im2, (5,5));
     #downsampling to match size of FTIR standard mag
     #downsampled = blur_im[3:blur_im.shape[0]:5, 3:blur_im.shape[1]:5]
-    # Convert images to grayscale
-    im1_gray = cv2.cvtColor(imref,cv2.COLOR_BGR2GRAY)
+    if len(np.shape(im2))>2:
+        # Convert images to grayscale
+        im2 = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY)
     #im2_gray = cv2.cvtColor(reduced_blurred,cv2.COLOR_BGR2GRAY)
-    im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY)
+    if len(np.shape(imref))>2:
+        imref = cv2.cvtColor(imref,cv2.COLOR_BGR2GRAY)
     
     # Find size of image1
     sz = imref.shape
@@ -44,16 +46,16 @@ def align_Images(im2, imref):
     criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
      
     # Run the ECC algorithm. The results are stored in warp_matrix.
-    (cc, warp_matrix) = cv2.findTransformECC (im1_gray,im2_gray,warp_matrix, warp_mode, criteria)
+    (cc, warp_matrix) = cv2.findTransformECC (imref,im2,warp_matrix, warp_mode, criteria)
      
     if warp_mode == cv2.MOTION_HOMOGRAPHY :
         # Use warpPerspective for Homography 
-        im2_aligned = cv2.warpPerspective (im2_gray, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
+        im2_aligned = cv2.warpPerspective (im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
     else :
         # Use warpAffine for Translation, Euclidean and Affine
-        im2_aligned = cv2.warpAffine(im2_gray, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP);
+        im2_aligned = cv2.warpAffine(im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP);
         
-    cv2.imwrite("Aligned_Image.jpg", im2_aligned);
+    cv2.imwrite("Aligned_Image.jpg", im2);
    
     return im2_aligned, warp_matrix
 
