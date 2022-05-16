@@ -50,9 +50,10 @@ def bandcsv_to_envi(csvlist, wavenumberlist, *outfname):
     waves = []
     for tup in ziplist:
         arrayslice = pandas.read_csv(tup[0]).to_numpy(dtype=numpy.float32)
+        
         if arrayslice.shape != firstband.shape:
             print("ERROR: CSV files must have same dimensions!")
-       # arrayslice, warp_affine = align_Images( arrayslice, firstband.to_numpy(dtype=numpy.float32))
+        #arrayslice, warp_affine = align_Images( arrayslice, firstband.to_numpy(dtype=numpy.float32))
         arrayslice = numpy.reshape(arrayslice,(1,arrayslice.shape[0],arrayslice.shape[1]))
         array = numpy.append(array,arrayslice,axis=0)
         waves.append(tup[1])

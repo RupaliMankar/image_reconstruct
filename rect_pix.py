@@ -53,8 +53,8 @@ def inter_interleave(Iref, rectE, pixsize = (0.5,5), keep_high_res_shape = False
     rect_scale = np.zeros((b, y, x), dtype = np.float32)
     
     #fill evry tenth row with the value of rectangular pixels 
-    for i in range(rect_y):
-        rect_scale[:,int(i*rescaling_factor),:] = rectE[:,i,:] 
+    for i in range(rectE.shape[1]):
+        rect_scale[:,y,:] = rectE[:,i,:] 
     
     if keep_high_res_shape:
         rect_scale = reshape_to_ref(Iref, rect_scale)
@@ -119,8 +119,8 @@ def inter_fft_window(rectE, pixsize = (0.5,5),  wintype = 'guassian', option = 0
     
     
     
-#----------------------------converting band cvs files to Envi files----------------------------------------------
-# path1 = r"Y:/Rect_pix/cervix/"
+# # #----------------------------converting band cvs files to Envi files----------------------------------------------
+# path1 = r"Y:\Rect_pix\2022\A4/"
 # cores = os.listdir(path1)
 # for i in range(len(cores)):
 #     path11 = path1+cores[i]
@@ -128,69 +128,80 @@ def inter_fft_window(rectE, pixsize = (0.5,5),  wintype = 'guassian', option = 0
 #     wavenumberlist = np.zeros(len(csvlist))
 #     fname = path1+cores[i]+'/Envi'+cores[i]
 #     for j in range(len(csvlist)):
-#        # wavenumberlist[j] = int(csvlist[j][-8:-4]) #if there is no number after band number
+#         # wavenumberlist[j] = int(csvlist[j][-8:-4]) #if there is no number after band number
 #         wavenumberlist[j] = int(csvlist[j][-10:-6]) #if there is one number after band number
       
-#     BandsHSI = bandcsv_to_envi(csvlist,wavenumberlist,fname)
+#     BandsHSI = bandcsv_to_envi(csvlist,wavenumberlist,fname)    
+#     print(fname)
 
 
-path1 = r"Y:\Rect_pix\cervix\image_reconstruction\G9/"
+#path1 = r"T:\Chalapathi\Project Flash\2022\cervical_27_wavenumbers_csv\D2/"
+path1 = r"Y:\Rect_pix\2022\A4/"
+pix_spacing = [2, 3, 5, 10, 20]
 
-#read high resolution (square pixel envi file)
-sq = envi.envi(path1+'EnviG9')
-sqE = sq.loadall()
-sq_W = np.asarray(sq.header.wavelength)
-
-#read high resolution (square pixel envi file)
-rect = envi.envi(path1+'EnviG9_305')
-pixsize = (0.5,3)
-rectE = rect.loadall()
-rect_x, rect_y, rect_W = rect.header.samples, rect.header.lines, np.asarray(rect.header.wavelength)
-
-#find band images correspodnding to major amide bands and select amide I band image from sq Envi file as a reference image
-amide = [1660, 1540, 1233]
-amide_ind = [np.argmin(np.abs(sq_W-w)) for w in amide]
-Iref = sqE[amide_ind[0],:,:]  
-
-keep_high_res_shape = False  #True if must have size of high resolution image
-
-
-
-
-# --------------------resizing of rectangular pixels using interleaved zero padding-----------------------------
-# Iref_new, rect_inter, rect_Scale_band = inter_interleave(Iref, rectE, pixsize, keep_high_res_shape)
+for p in pix_spacing:
     
-'''-----------intgerpolation using zero padding of fft--------------------'''
-wintype = 'guassian'
-option = 150
-Rect_inter = inter_fft_window(rectE, pixsize, wintype, option)
+    #read high resolution (square pixel envi file)
+    sq = envi.envi(r'Y:\Rect_pix\2022\A4/05X05/Envi05X05')
+    sqE = sq.loadall()
+    sq_W = np.asarray(sq.header.wavelength)
+    
+    #read high resolution (square pixel envi file)
+    rect = envi.envi((r'Y:\Rect_pix\2022\A4/#X05/Envi#X05').replace("#", str(p)))
+    pixsize = (0.5,p)
+    rectE = rect.loadall()
+    rect_x, rect_y, rect_W = rect.header.samples, rect.header.lines, np.asarray(rect.header.wavelength)
+    
+    #find band images correspodnding to major amide bands and select amide I band image from sq Envi file as a reference image
+    amide = [1660, 1540, 1233]
+    amide_ind = [np.argmin(np.abs(sq_W-w)) for w in amide]
+    Iref = sqE[amide_ind[0],:,:]  
+    
+    keep_high_res_shape = True  #True if must have size of high resolution image
+    
+    
+    
+    
+    # --------------------resizing of rectangular pixels using interleaved zero padding-----------------------------
+    # Iref_new, rect_inter, rect_Scale_band = inter_interleave(Iref, rectE, pixsize, keep_high_res_shape)
+        
+    '''-----------intgerpolation using zero padding of fft--------------------'''
+    wintype = 'guassian'
+    option = 150
+    Rect_inter = inter_fft_window(rectE, pixsize, wintype, option)
+    
+    
+    warp_affine = []
+    
+    if keep_high_res_shape:
+        sz = Iref.shape # Find size of image1
+        rect_Scale_band = Rect_inter[amide_ind[0],:,:]
+        rect_intern = np.zeros((len(rect_W),sz[0],sz[1]))
+        im_new_size = cv2.resize(Rect_inter[amide_ind[0],:,:],sz,interpolation = cv2.INTER_AREA)
+     
+        aligned_img, warp_matrix = align_Images(im_new_size, Iref)
+        #align rest of the bands
+        for i in range(len(rect_W)):
+            #resizing FTIR image 
+            im_new_size = cv2.resize(Rect_inter[i,:,:],sz,interpolation = cv2.INTER_AREA)
+     
+            im_aligned = cv2.warpAffine(im_new_size, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP);
+            rect_intern[i,:,:] = im_aligned
+            
+        rect_intern_ref = numpy.concatenate((rect_intern, np.reshape(Iref,(1,Iref.shape[0],Iref.shape[1]))), axis=0)
+    else:
+        
+        Iref_new = cv2.resize(Iref, (Rect_inter.shape[2], Rect_inter.shape[1]), interpolation = cv2.INTER_AREA)
+        rect_Scale_band = Rect_inter[amide_ind[0],:,:]
+        Iref_new, warp_matrix = align_Images(Iref_new, rect_Scale_band)  # reference is interpolated image
+        
+        rect_intern_ref = numpy.concatenate((Rect_inter, np.reshape(Iref_new,(1,Iref_new.shape[0],Iref_new.shape[1]))), axis=0)
 
-Iref_new = cv2.resize(Iref, (Rect_inter.shape[2], Rect_inter.shape[1]), interpolation = cv2.INTER_AREA)
-rect_Scale_band = Rect_inter[amide_ind[0],:,:]
-
-if keep_high_res_shape == True:
-    Iref_new = Iref
-    rect_Scale_band = Rect_inter[amide_ind[0],:,:]
-
-
-
-warp_affine = []
-sz = Iref_new.shape # Find size of image1
-if keep_high_res_shape:
-    aligned_img, warp_matrix = align_Images(rect_Scale_band, Iref_new)
-    #align rest of the bads using warp_affine matrix
-    for i in range(len(rect_W)):
-        Rect_inter[i,:,:] = cv2.warpAffine(Rect_inter[i,:,:], warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP);
-else:
-    Iref_new, warp_matrix = align_Images(Iref_new, rect_Scale_band)  # reference is interpolated image
-
-
-
-# #saving enviFile
-# outfname  = path1+'EnviG9_305_inter'
-# envi.save_envi(rect_inter, ''.join(outfname), 'BSQ',rect_W)
-
-#saving interpolated file with high resolution (PAN) band as a last band in the HSI
-rect_intern_ref = numpy.concatenate(Rect_inter, np.reshape(Iref_new,(1,Iref_new.shape[0],Iref_new.shape[1])), axis=0)
-outfname  = path1+'EnviG9_305_fft_inter_win'+wintype
-envi.save_envi(rect_intern_ref, ''.join(outfname), 'BSQ', np.append(rect_W, 1900))
+    
+    
+    
+    # #saving enviFile
+    # outfname  = path1+'EnviG9_305_inter'
+    # envi.save_envi(rect_inter, ''.join(outfname), 'BSQ',rect_W)
+    outfname  = path1+'/'+wintype+str(option)+'/'+'Envi_'+str(p)+'05_fft_inter_win'+wintype
+    envi.save_envi(rect_intern_ref.astype(np.float32), ''.join(outfname), 'BSQ', np.append(rect_W, 1900))
