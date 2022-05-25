@@ -10,7 +10,7 @@ import numpy
 import pandas 
 import glob, os, sys
 import numpy as np
-#import cv2
+import cv2
 import matplotlib.pyplot as plt
 from math import floor
 import timeit
@@ -21,7 +21,7 @@ from scipy.signal import windows
 sys.path.append(r'D:\software\python\mIRage')
   
 from basic_utils.mIRage2envi import bandcsv_to_envi
-#from basic_utils.img_alignment import align_Images
+from basic_utils.img_alignment import align_Images
 
 
 # def reshape_to_ref(Iref, rectE):
@@ -135,7 +135,7 @@ def inter_fft_window(rectE, pixsize = (0.5,5),  wintype = 'guassian'):
 #     BandsHSI = bandcsv_to_envi(csvlist,wavenumberlist,fname)    
 #     print(fname)
 
-parent_path = r"Z:\Rect_pix\2022/"
+parent_path = r"Y:\Rect_pix\2022/"
 
 core = ['A4', 'D2', 'G7', 'J1', 'J5']
 pix_spacing = [1, 2, 3, 5, 10, 20]
@@ -145,7 +145,8 @@ wintype = 'hamming'
 
 cores = os.listdir(parent_path)
 for core in cores:
-    os.chdir(parent_path+core+'/')
+    foldername = parent_path+core+'/'
+    os.chdir(foldername)
     for i in range(len(cores)):
         print(os.getcwd())
         #read high resolution (square pixel envi file)
@@ -214,5 +215,5 @@ for core in cores:
         # #saving enviFile
         # outfname  = path1+'EnviG9_305_inter'
         # envi.save_envi(rect_inter, ''.join(outfname), 'BSQ',rect_W)
-        outfname  = path1+'/'+wintype+str(option)+'/'+'Envi_'+str(p)+'05_fft_inter_win'+wintype
+        outfname  = foldername+wintype+'/'+'Envi_'+str(p)+'05_fft_inter_win'+wintype
         envi.save_envi(rect_intern_ref.astype(np.float32), ''.join(outfname), 'BSQ', np.append(rect_W, 1900))
